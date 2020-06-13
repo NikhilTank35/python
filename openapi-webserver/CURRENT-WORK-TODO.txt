@@ -1,0 +1,51 @@
+
+
+  be aware that we have UTF-8-content and need foreign_keys=ON;!
+  see https://stackoverflow.com/questions/2614984/sqlite-sqlalchemy-how-to-enforce-foreign-keys
+
+
+Evey call returns JSON and also a 'code' (additionally to the HTTP-code) inside the JSON-answer.
+
+/login user password (return error if user is already logged in)
+  a session-cookie is sent to the client, but the content of the cookie is stored on the server (in files)! Stored: cookie-created-at, cookie-last-usage, session_role_id, session_role_title_id, session_role_orgaization_id
+ return code=0 (for logged in) user and allowed roles in JSON... just the same as /get-user-info
+
+  login: then there is a session-user (cookie on server!)
+  session_role_id = x
+  session_role_title_id = y -- see title_is_allowed_to_do_everything, title_is_allowed_to_do_make_others_trustee, title_is_allowed_to_do_everything_on_organization_webservers
+  session_role_orgaization_id = z
+
+
+/logout (cookie is being removed) an error is returned if not logged in.
+
+every logged in user:
+  /get-user-info optional: username; only superuser is allowed a login_name not be it's own!; returns all user and if logged in: role info
+  /list-roles-i-could-switch-to
+  /switch-to-role existing_role_name locale
+
+user's current session role allows by title_is_allowed_to_do_make_others_trustee:
+ /make-this-user-a-trustee-of-organization login_name optional: locale and short_orgname (If not given, the same as my session says). If given, it must be the same short_orgname as my own. The superuser is allowed to use any org!
+ /remove-this-user-from-being-a-trustee-of-organization login_name login_name optional: locale and short_orgname (If not given, the same as my session says). If given, it must be the same short_orgname as my own. The superuser is allowed to use any org!
+
+
+superuser:
+/get-all-organizations
+/add-organization
+/edit-organization
+/remove-organization
+/get-all-existing-roles
+/add-existing-role
+/edit-existing-role
+/remove-existing-role
+/get-all-users
+/add-user
+/edit-user
+/remove-user
+/get-all-allowed-roles-for-user
+/add-allowed-role-for-user
+/edit-allowed-role-for-user
+/remove-allowed-role-for-user
+
+
+When I am correct we cannot use the 'roles' from flask/OpenAPI!
+But that's not a problem. Just check inside the functions by ourself!

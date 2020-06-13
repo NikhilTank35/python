@@ -1,0 +1,1422 @@
+#
+# Copyright (C) 2020, Sardoodledom (github1@lotkit.org)
+# All rights reserved.
+#
+# Although you can see the source code, it is not free and is
+# protected by copyright. If you are interested in using it, please
+# contact us at: github1@lotkit.org
+#
+openapi: 3.0.3
+info:
+  version: '1.0'
+  title: Manage Webservers
+  description: API for managing webareas
+  contact:
+    email: you@your-domain.com
+servers:
+  # - url: http://localhost:8080/api/1.0.0
+  # - url: https://localhost:8080/api/1.0.0
+  - url: http://localhost:8080
+  - url: https://localhost:8080
+
+paths:
+  /login:
+    post:
+      summary: User login api
+      description: API which takes username or email address and password to login
+      operationId: openapi_webserver.users.login
+      requestBody:
+        description: username (or email address) and password needed.
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/LoginByNameRequest'
+                - $ref: '#/components/schemas/LoginByEmailRequest'
+      responses:
+        200:
+          headers:
+            Set-Cookie:
+              description: Session key is set in cookie named SID
+              schema:
+                type: string
+                example: SID=77eeb1a0-4839-4420-beb1-2a3e06cfebda; Path=/; HttpOnly
+          description: Successful login
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    # 200: user logged in
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: user does not exists or wrong passord or no permission to login
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /logout:
+    get:
+      summary: User logout api
+      description: API which logs out and removes the cookie
+      operationId: openapi_webserver.users.logout
+      parameters: []
+      responses:
+        200:
+          headers:
+            Set-Cookie:
+              description: Set a cookie for expiring it.
+              schema:
+                type: string
+                example: SID=; Expires=Thu, 01-Jan-1970 00:00:00 GMT; Max-Age=0; Path=/
+          description: Successful logout
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    # 200: user logged in
+                    enum: [ 200 ]
+                  message:
+                    type: string
+  #Found Issus when path parameter is optional , so We can use query parameter.
+  # https://github.com/swagger-api/swagger-editor/issues/1853
+  /get-user-info:
+    get:
+      summary: Get user information
+      description: API which get user information from DB
+      operationId: openapi_webserver.users.get_user_info_without_username
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+          schema:
+            type: string
+            format: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get user information
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: user does not exists or wrong passord or no permission to login
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /get-user-info/{username}:
+    get:
+      summary: Get user information
+      description: API which get user information from DB
+      operationId: openapi_webserver.users.get_user_info
+      parameters:
+          - name: username
+            in: path
+            required: true
+            description: Existing role_name of the user.
+            schema:
+              type: string
+              minLength: 3
+              maxLength: 20
+              pattern: '^[a-z][a-z0-9]+$'
+          - name: locale
+            in: query
+            required: false
+            description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+            schema:
+              type: string
+              format: string
+              minLength: 2
+              maxLength: 2
+              pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get user information
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: user does not exists or wrong passord or no permission to login
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /list-roles-i-could-switch-to:
+    get:
+      summary: Get current user roles information
+      description: API which get user roles from DB
+      operationId: openapi_webserver.users.list_roles_i_could_switch_to
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+          schema:
+            type: string
+            format: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get roles information
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: user does not exists or wrong passord or no permission to login
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /switch-to-role/{role_uid}:
+    get:
+      summary: switch role using existing role
+      description: API which switch role using DB
+      operationId: openapi_webserver.users.switch_to_role
+      parameters:
+        - name: role_uid
+          in: path
+          required: true
+          description: Existing role_uid the current user is allowed to switch to.
+          schema:
+            type: string
+            minLength: 6
+            maxLength: 32
+            pattern: '^role\-[a-z0-9_]+$'
+        - name: locale
+          in: query
+          required: false
+          description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+          schema:
+            type: string
+            format: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get user information
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /make-user-a-trustee-of-organization/{username}/{organization_uid}:
+    get:
+      summary: make user to trustee of organization
+      description: API which make user to trustee of organization using DB
+      operationId: openapi_webserver.users.make_user_a_trustee_of_organization
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Existing login_name of the user.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            pattern: '^[a-z][a-z0-9]+$'
+        - name: organization_uid
+          in: path
+          required: true
+          description: Existing short name of the user.
+          schema:
+            type: string
+            minLength: 6
+            maxLength: 32
+            pattern: '^org\-[a-z0-9_]+$'
+        - name: locale
+          in: query
+          required: false
+          description: Existing locale of the user.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful make user as trustee
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /remove-user-from-being-a-trustee-of-organization/{username}/{organization_uid}:
+    get:
+      summary: remove user to trustee of organization
+      description: API which remove user to trustee of organization using DB
+      operationId: openapi_webserver.users.remove_user_from_being_a_trustee_of_organization
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Existing login_name of the user.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 20
+            pattern: '^[a-z][a-z0-9]+$'
+        - name: organization_uid
+          in: path
+          required: true
+          description: Existing short name of the user.
+          schema:
+            type: string
+            minLength: 6
+            maxLength: 32
+            pattern: '^org\-[a-z0-9_]+$'
+        - name: locale
+          in: query
+          required: false
+          description: Existing locale of the user.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful remove user as trustee
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /get-all-organizations:
+    get:
+      summary: get all organization list
+      description: API which get all organization list using DB
+      operationId: openapi_webserver.organizations.get_all_organizations
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+          schema:
+            type: string
+            format: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get all organizations
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /add-organization:
+    post:
+      summary: add organization
+      description: API which insert organization in DB
+      operationId: openapi_webserver.organizations.add_organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: object
+                  example:
+                    locale1:
+                      - short-name
+                      - long-name
+                    locale2:
+                      - short-name
+                      - long-name
+      responses:
+        200:
+          description: Successful add organization
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /remove-organization:
+    post:
+      summary: remove organization
+      description: API which delete organization based on uid in DB
+      operationId: openapi_webserver.organizations.remove_organization
+      requestBody:
+        description: add uid of organization 
+        content:
+          application/json:
+            schema:
+              required:
+                - uid
+              type: object
+              properties:
+                uid:
+                  type: string
+                  format: string
+                  minLength: 8
+                  maxLength: 8
+      responses:
+        200:
+          description: Successful remove organization
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /edit-organization:
+    post:
+      summary: edit organization
+      description: API which edit organization using DB
+      operationId: openapi_webserver.organizations.edit_organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: object
+                  example:
+                    uid:
+                      - value
+                    locale1:
+                      - short-name
+                      - long-name
+                    locale2:
+                      - short-name
+                      - long-name
+      responses:
+        200:
+          description: Successful edit organization
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /get-all-existing-roles:
+    get:
+      summary: get all existing roles
+      description: API which get all existing roles using DB
+      operationId: openapi_webserver.existing_role.get_all_existing_roles
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          description: Instead of using the current default locale you can specify one here for receiving the resulting info return in a different language.
+          schema:
+            type: string
+            format: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^(?:en|de)$'
+      responses:
+        200:
+          description: Successful get all existing roles
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /add-existing-role:
+    post:
+      summary: add existing role
+      description: API which insert existing role in DB
+      operationId: openapi_webserver.existing_role.add_existing_role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: object
+                  example:
+                    translation:
+                      - local1
+                      - description1  
+                    title-uid:
+                      - value
+                    organization-uid:
+                      - value
+      responses:
+        200:
+          description: Successful add existing role
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /edit-existing-role:
+    post:
+      summary: edit existing role
+      description: API which update existing role using DB
+      operationId: openapi_webserver.existing_role.edit_existing_role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: object
+                  example:
+                    uid:
+                      - value
+                    translation:
+                      - local1
+                      - description1  
+                    title-uid:
+                      - value
+                    organization-uid:
+                      - value
+      responses:
+        200:
+          description: Successful edit existing role
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /remove-existing-role:
+    post:
+      summary: remove existing role organization
+      description: API which delete existing role based on uid in DB
+      operationId: openapi_webserver.existing_role.remove_existing_role
+      requestBody:
+        description: uid of existing role 
+        content:
+          application/json:
+            schema:
+              required:
+                - uid
+              type: object
+              properties:
+                uid:
+                  type: string
+                  format: string
+                  minLength: 9
+                  maxLength: 9
+      responses:
+        200:
+          description: Successfully remove existing role
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /get-all-users:
+    get:
+      summary: get all users
+      description: API which get all users using DB
+      operationId: openapi_webserver.existing_user.get_all_users
+      responses:
+        200:
+          description: Successful get all users
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /add-user:
+    post:
+      summary: add user
+      description: API which add user using DB
+      operationId: openapi_webserver.existing_user.add_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - login-name
+                - default-locale
+                - email
+                - gender
+                - name
+                - organization-uid
+                - default-role-uid
+                - is_enabled
+                - surname
+                - password
+              type: object
+              properties:
+                login-name:
+                  type: string
+                  format: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-z][a-z0-9]+$'
+                default-locale:
+                  type: string
+                  format: string
+                  minLength: 2
+                  maxLength: 2
+                  pattern: '^(?:en|de)$'
+                email:
+                  type: string
+                  format: email
+                  pattern: '^[a-z0-9\.\+\-\_]+\@[a-z0-9]+[a-z0-9\-\.]*\.[a-z]{2,}$'
+                gender:
+                  type: string
+                  format: string
+                  minLength: 1
+                  maxLength: 1
+                  pattern: '^(?:m|f)$'
+                name:
+                  type: string
+                organization-uid:
+                  type: string
+                  format: string
+                  minLength: 8
+                  maxLength: 12
+                  pattern: '^org\-(\S)+$'
+                default-role-uid:
+                  type: string
+                  format: string
+                  minLength: 9
+                  maxLength: 12
+                  pattern: '^role\-(\S)+$'
+                is_enabled:
+                  type: boolean
+                surname:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                  minLength: 3
+                  maxLength: 128
+              
+      responses:
+        200:
+          description: Successful edit user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+
+  /edit-user:
+    post:
+      summary: edit user
+      description: API which update user using DB
+      operationId: openapi_webserver.existing_user.edit_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - login-name
+              type: object
+              minProperties: 2
+              maxProperties: 10
+              properties:
+                login-name:
+                  type: string
+                  format: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-z][a-z0-9]+$'
+                default-locale:
+                  type: string
+                  format: string
+                  minLength: 2
+                  maxLength: 2
+                  pattern: '^(?:en|de)$'
+                email:
+                  type: string
+                  format: email
+                  pattern: '^[a-z0-9\.\+\-\_]+\@[a-z0-9]+[a-z0-9\-\.]*\.[a-z]{2,}$'
+                gender:
+                  type: string
+                  format: string
+                  minLength: 1
+                  maxLength: 1
+                  pattern: '^(?:m|f)$'
+                name:
+                  type: string
+                organization-uid:
+                  type: string
+                  format: string
+                  minLength: 8
+                  maxLength: 12
+                  pattern: '^org\-(\S)+$'
+                default-role-uid:
+                  type: string
+                  format: string
+                  minLength: 9
+                  maxLength: 12
+                  pattern: '^role\-(\S)+$'
+                is_enabled:
+                  type: boolean
+                surname:
+                  type: string      
+      responses:
+        200:
+          description: Successful edit user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /remove-user:
+    post:
+      summary: remove user
+      description: API which delete existing user based on login-name in DB
+      operationId: openapi_webserver.existing_user.remove_user
+      requestBody:
+        description: login-name of existing role 
+        content:
+          application/json:
+            schema:
+              required:
+                - login-name
+              type: object
+              properties:
+                login-name:
+                  type: string
+                  format: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-z][a-z0-9]+$'
+      responses:
+        200:
+          description: Successfully remove user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /get-all-allowed-roles-for-user:
+    get:
+      summary: get all allowed roles for user
+      description: API which get all allowed roles for user using DB
+      operationId: openapi_webserver.allowed_role_for_user.get_all_allowed_roles_for_user
+      responses:
+        200:
+          description: Successfully get all allowed roles for user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /add-allowed-role-for-user:
+    post:
+      summary: add allowed roles for user
+      description: API which add allowed roles for user using DB
+      operationId: openapi_webserver.allowed_role_for_user.add_allowed_role_for_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - login-name
+                - existing-role-uid
+              type: object
+              properties:
+                login-name:
+                  type: string
+                  format: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-z][a-z0-9]+$'
+                existing-role-uid:
+                  type: string
+                  format: string
+                  minLength: 9
+                  maxLength: 12
+                  pattern: '^role\-(\S)+$'
+      responses:
+        200:
+          description: Successfully add allowed roles for user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+  /remove-allowed-role-for-user:
+    post:
+      summary: remove allowed roles for user
+      description: API which remove allowed roles for user using DB
+      operationId: openapi_webserver.allowed_role_for_user.remove_allowed_role_for_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+                - login-name
+                - existing-role-uid
+              type: object
+              properties:
+                login-name:
+                  type: string
+                  format: string
+                  minLength: 3
+                  maxLength: 20
+                  pattern: '^[a-z][a-z0-9]+$'
+                existing-role-uid:
+                  type: string
+                  format: string
+                  minLength: 9
+                  maxLength: 12
+                  pattern: '^role\-(\S)+$'
+      responses:
+        200:
+          description: Successfully remove allowed roles for user
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    enum: [ 200 ]
+                  message:
+                    type: string
+        403:
+          description: authorization failed or user does not exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 400
+                    maximum: 500
+                    # 403: authorization failed
+                    # 500: internal application error
+                    enum: [ 403, 500 ]
+                  message:
+                    type: string
+
+  /create-webarea:
+    post:
+      summary: Create new webarea
+      description: API which creates a new webarea configuration
+      operationId: openapi_webserver.webarea.create_webarea
+      parameters: []
+      requestBody:
+        description: new webarea ID 
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                id:
+                  type: integer
+                  format: int32
+                  minimum: 1000
+                  maximum: 2000
+      responses:
+        200:
+          description: Create New Webarea
+          #content: {}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    minimum: 200
+                    maximum: 200
+                    # 200: user logged in
+                    enum: [ 200 ]
+                  message:
+                    type: string
+components:
+  schemas:
+    LoginByNameRequest:
+      required:
+        - user
+        - password
+      type: object
+      properties:
+        user:
+          type: string
+          minLength: 3
+          maxLength: 20
+          pattern: '^[a-z][a-z0-9]+$'
+        password:
+          type: string
+          format: password
+          minLength: 3
+          maxLength: 128
+        locale:
+          type: string
+          format: string
+          minLength: 2
+          maxLength: 2
+          pattern: '^(?:en|de)$'
+    LoginByEmailRequest:
+      required:
+        - email
+        - password
+      type: object
+      properties:
+        email:
+          type: string
+          # https://swagger.io/docs/specification/data-models/data-types/#string
+          # However, format is an open value, so you can use any formats, even not
+          # those defined by the OpenAPI Specification, such as:
+          #   email
+          # so consider this 'format: email' as a hint here!
+          format: email
+          # very primitive email checking
+          pattern: '^[a-z0-9\.\+\-\_]+\@[a-z0-9]+[a-z0-9\-\.]*\.[a-z]{2,}$'
+        password:
+          type: string
+        locale:
+          type: string
+          format: string
+          minLength: 2
+          maxLength: 2
+          pattern: '^(?:en|de)$'

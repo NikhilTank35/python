@@ -1,0 +1,420 @@
+I come from 'real' programming languages (Assembler, C, Lisp, Perl), so I write some info here for being able to look it up...
+
+
+=== Python variables do not have a 'real' scope! ===
+This works:
+if condition:
+  x = 'something'
+else:
+  x = 'something else'
+print(x)
+
+because:
+https://stackoverflow.com/a/2829642
+Python variables are scoped to the innermost function, class, or
+module in which they're assigned. Control blocks like if and while
+blocks don't count, so a variable assigned inside an if is still
+scoped to a function, class, or module.
+(Implicit functions defined by a generator expression or list/set/dict
+comprehension do count, as do lambda expressions. You can't stuff an
+assignment statement into any of those, but lambda parameters and for
+clause targets are implicit assignment.)
+See: https://docs.python.org/3/tutorial/classes.html#python-scopes-and-namespaces
+
+
+=== sqlalchemy cannot return a 'normal' list of attribute values ===
+sqlalchemy ALWAYS return tuples!
+See:
+with app.app_context():
+  roles = db.session.query(AllowedRoleForUser.existing_role_id).filter_by(user_id=user.id).all()
+  #does the same: roles = db.session.query(AllowedRoleForUser).with_entities(AllowedRoleForUser.existing_role_id).filter_by(user_id=user.id).all()
+
+ print(type(roles))
+ print(roles)
+ for f in roles:
+  print(type(f), f)
+
+gives:
+<class 'list'>
+[(1000,), (1,), (1005,)]
+****
+<class 'sqlalchemy.util._collections.result'> (1000,)
+<class 'sqlalchemy.util._collections.result'> (1,)
+<class 'sqlalchemy.util._collections.result'> (1005,)
+
+Reason:
+https://stackoverflow.com/questions/48466959/query-for-list-of-attribute-instead-of-tuples-in-sqlalchemy
+When passing in ORM-instrumented descriptors such as a column, each
+result is a named tuple, even for just one column. You could use the
+column name in a list comprehension to 'flatten' the list (you can
+drop the .all() call, iteration retrieves the objects too):
+
+result = [r.id for r in session.query(MyModel.id)]
+
+or use the fact that it's a tuple when looping a for loop and unpack it to a single-element tuple of targets:
+
+result = session.query(MyModel.id)
+for id, in result:
+    # do something with the id
+
+The latter could also be used in a list comprehension:
+
+[id for id, in session.query(MyModel.id)]
+
+[...]
+
+It's strange that SQLalchemy is not providing a proper solution. In sqlalchemy if select a member variable such as a column then each result is a named tuple as @Martijn said. I came to a solution for this using zip function of python
+
+Zip official docuementation
+
+    zip(seq1 [, seq2 [...]]) -> [(seq1[0], seq2[0] ...), (...)] Return a list of tuples, where each tuple contains the i-th element from each of the argument sequences. The returned list is truncated in length to the length of the shortest argument sequence.
+
+Coming to your example
+
+result = session.query(MyModel.id).all()
+result = zip(*result)[0]
+
+[...]
+
+q_stringlist = [q[0] for q in session.query((distinct(Table.column))).all()]
+
+
+https://stackoverflow.com/questions/9486180/sql-alchemy-orm-returning-a-single-column-how-to-avoid-common-post-processing
+
+Then you only have to [0] index in once. For such a short list your comprehension is faster:
+
+>>> timeit('result = zip(*[("result",), ("result_2",), ("result_3",)])', number=10000)
+0.010490894317626953
+>>> timeit('result = [ result[0] for result in [("result",), ("result_2",), ("result_3",)] ]', number=10000)
+0.0028390884399414062
+
+However for longer lists zip should be faster:
+
+>>> timeit('result = zip(*[(1,)]*100)', number=10000)
+0.049577951431274414
+>>> timeit('result = [ result[0] for result in [(1,)]*100 ]', number=10000)
+0.11178708076477051
+
+So it's up to you to determine which is better for your situation.
+
+=== flask_sqlalchemy and transactions ===
+When I am correct:
+For every request a new transaction is being startet. If we commit the changes are written into DB and a new transactions is started.
+An observation:
+If I do it this way:
+try:
+    with app.app_context():
+        for user in db.session.query(User).all():
+                log.info(message="Found user before doing anything: " + user.login_name)
+    [...]
+except IntegrityError as ie:
+    db.session.rollback()
+
+it seems to act sometimes funny, so just put the context around all.
+
+
+
+Here is a detailed example:
+
+Suppose you have a database, with users 'user0', 'user1', 'user2', and 'user3'.
+'user1' is not removable, because of foreign key constraints.
+
+**********************
+def db_demo() ->  Tuple[dict, int]:
+    with app.app_context():
+        try:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before doing anything: " + user.login_name)
+
+            n_deleted = db.session.query(User).filter(User.login_name == 'user2').delete()
+            log.info(message="deleted: " + str(n_deleted))
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user2: " + user.login_name)
+            n_deleted = db.session.query(User).filter(User.login_name == 'user3').delete()
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user3: " + user.login_name)
+
+            # if you do not call commit here, the changes are NOT going into DB!
+            db.session.commit()
+        except IntegrityError as ie:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before rollback: " + user.login_name)
+
+            # not really needed here in our case, because we will end working on this request
+            # in a few microseconds and flask_sqlalchemys default @app.teardown_appcontext
+            # will call self.session.remove()
+            # but safty first
+            db.session.rollback()
+
+            log.info(message="SQLAlchemy.IntegrityError has happen." , error=str(ie), action="will return 403 (403)")
+            for user in db.session.query(User).all():
+                log.info(message="Found user after rollback: " + user.login_name)
+            return create_error_response(403, "Internal Server Error"), 200
+        except exc.SQLAlchemyError as e:
+            db.session.rollback()
+            log.info(message="SQLAlchemyError has happen.", error=str(e), action="will return 403 (403)")
+            return create_error_response(403, "Internal Server Error"), 200
+
+    return {'code': 200, 'message': 'Great'}
+
+**** gives:
+{"message": "Found user before doing anything: user0"}
+{"message": "Found user before doing anything: user1"}
+{"message": "Found user before doing anything: user2"}
+{"message": "Found user before doing anything: user3"}
+{"message": "deleted: 1"}
+{"message": "Found user after deleting user2: user0"}
+{"message": "Found user after deleting user2: user1"}
+{"message": "Found user after deleting user2: user3"}
+{"message": "Found user after deleting user3: user0"}
+{"message": "Found user after deleting user3: user1"}
+
+sqlite> select login_name from user;
+user0
+user1
+sqlite>
+
+-> user3 and user4 are being removed in DB
+
+
+
+**********************
+def db_demo() ->  Tuple[dict, int]:
+    with app.app_context():
+        try:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before doing anything: " + user.login_name)
+
+            n_deleted = db.session.query(User).filter(User.login_name == 'user2').delete()
+            log.info(message="deleted: " + str(n_deleted))
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user2: " + user.login_name)
+            n_deleted = db.session.query(User).filter(User.login_name == 'user3').delete()
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user3: " + user.login_name)
+
+            # if you do not call commit here, the changes are NOT going into DB!
+            #db.session.commit()
+        except IntegrityError as ie:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before rollback: " + user.login_name)
+
+            # not really needed here in our case, because we will end working on this request
+            # in a few microseconds and flask_sqlalchemys default @app.teardown_appcontext
+            # will call self.session.remove()
+            # but safty first
+            db.session.rollback()
+
+            log.info(message="SQLAlchemy.IntegrityError has happen." , error=str(ie), action="will return 403 (403)")
+            for user in db.session.query(User).all():
+                log.info(message="Found user after rollback: " + user.login_name)
+            return create_error_response(403, "Internal Server Error"), 200
+        except exc.SQLAlchemyError as e:
+            db.session.rollback()
+            log.info(message="SQLAlchemyError has happen.", error=str(e), action="will return 403 (403)")
+            return create_error_response(403, "Internal Server Error"), 200
+
+    return {'code': 200, 'message': 'Great'}
+
+**** gives:
+{"message": "Found user before doing anything: user0"}
+{"message": "Found user before doing anything: user1"}
+{"message": "Found user before doing anything: user2"}
+{"message": "Found user before doing anything: user3"}
+{"message": "deleted: 1"}
+{"message": "Found user after deleting user2: user0"}
+{"message": "Found user after deleting user2: user1"}
+{"message": "Found user after deleting user2: user3"}
+{"message": "Found user after deleting user3: user0"}
+{"message": "Found user after deleting user3: user1"}
+
+sqlite> select login_name from user;
+user0
+user1
+user2
+user3
+
+-> user3 and user4 are NOT being removed in DB, because of the missing commit
+
+
+**********************
+def db_demo() ->  Tuple[dict, int]:
+    with app.app_context():
+        try:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before doing anything: " + user.login_name)
+
+            n_deleted = db.session.query(User).filter(User.login_name == 'user2').delete()
+            log.info(message="deleted: " + str(n_deleted))
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user2: " + user.login_name)
+            n_deleted = db.session.query(User).filter(User.login_name == 'user1').delete()
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user1: " + user.login_name)
+
+            # if you do not call commit here, the changes are NOT going into DB!
+            db.session.commit()
+        except IntegrityError as ie:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before rollback: " + user.login_name)
+
+            # not really needed here in our case, because we will end working on this request
+            # in a few microseconds and flask_sqlalchemys default @app.teardown_appcontext
+            # will call self.session.remove()
+            # but safty first
+            db.session.rollback()
+
+            log.info(message="SQLAlchemy.IntegrityError has happen." , error=str(ie), action="will return 403 (403)")
+            for user in db.session.query(User).all():
+                log.info(message="Found user after rollback: " + user.login_name)
+            return create_error_response(403, "Internal Server Error"), 200
+        except exc.SQLAlchemyError as e:
+            db.session.rollback()
+            log.info(message="SQLAlchemyError has happen.", error=str(e), action="will return 403 (403)")
+            return create_error_response(403, "Internal Server Error"), 200
+
+    return {'code': 200, 'message': 'Great'}
+
+**** gives:
+{"message": "Found user before doing anything: user0"}
+{"message": "Found user before doing anything: user1"}
+{"message": "Found user before doing anything: user2"}
+{"message": "Found user before doing anything: user3"}
+{"message": "deleted: 1"}
+{"message": "Found user after deleting user2: user0"}
+{"message": "Found user after deleting user2: user1"}
+{"message": "Found user after deleting user2: user3"}
+{"message": "Found user before rollback: user0"}
+{"message": "Found user before rollback: user1"}
+{"message": "Found user before rollback: user3"}
+{"message": "SQLAlchemy.IntegrityError has happen.", "error": "(sqlite3.IntegrityError) foreign key constraint failed\n[SQL: DELETE FROM user WHERE user.login_name = ?]\n[parameters: ('user1',)]\n(Background on this error at: http://sqlalche.me/e/gkpj)", "action": "will return 403 (403)"}
+{"message": "Found user after rollback: user0"}
+{"message": "Found user after rollback: user1"}
+{"message": "Found user after rollback: user2"}
+{"message": "Found user after rollback: user3"}
+
+sqlite> select login_name from user;
+user0
+user1
+user2
+user3
+
+
+**********************
+def db_demo() ->  Tuple[dict, int]:
+    with app.app_context():
+        try:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before doing anything: " + user.login_name)
+
+            n_deleted = db.session.query(User).filter(User.login_name == 'user2').delete()
+            log.info(message="deleted: " + str(n_deleted))
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user2: " + user.login_name)
+            n_deleted = db.session.query(User).filter(User.login_name == 'user1').delete()
+            for user in db.session.query(User).all():
+                log.info(message="Found user after deleting user1: " + user.login_name)
+
+            # if you do not call commit here, the changes are NOT going into DB!
+            db.session.commit()
+        except IntegrityError as ie:
+            for user in db.session.query(User).all():
+                log.info(message="Found user before rollback: " + user.login_name)
+
+            # not really needed here in our case, because we will end working on this request
+            # in a few microseconds and flask_sqlalchemys default @app.teardown_appcontext
+            # will call self.session.remove()
+            # but safty first
+            #db.session.rollback()
+
+            log.info(message="SQLAlchemy.IntegrityError has happen." , error=str(ie), action="will return 403 (403)")
+            for user in db.session.query(User).all():
+                log.info(message="Found user after rollback: " + user.login_name)
+            return create_error_response(403, "Internal Server Error"), 200
+        except exc.SQLAlchemyError as e:
+            db.session.rollback()
+            log.info(message="SQLAlchemyError has happen.", error=str(e), action="will return 403 (403)")
+            return create_error_response(403, "Internal Server Error"), 200
+
+    return {'code': 200, 'message': 'Great'}
+
+**** gives:
+
+{"message": "Found user before doing anything: user0"}
+{"message": "Found user before doing anything: user1"}
+{"message": "Found user before doing anything: user2"}
+{"message": "Found user before doing anything: user3"}
+{"message": "deleted: 1"}
+{"message": "Found user after deleting user2: user0"}
+{"message": "Found user after deleting user2: user1"}
+{"message": "Found user after deleting user2: user3"}
+{"message": "Found user before rollback: user0"}
+{"message": "Found user before rollback: user1"}
+{"message": "Found user before rollback: user3"}
+{"message": "SQLAlchemy.IntegrityError has happen.", "error": "(sqlite3.IntegrityError) foreign key constraint failed\n[SQL: DELETE FROM user WHERE user.login_name = ?]\n[parameters: ('user1',)]\n(Background on this error at: http://sqlalche.me/e/gkpj)", "action": "will return 403 (403)"}
+{"message": "Found user after rollback: user0"}
+{"message": "Found user after rollback: user1"}
+{"message": "Found user after rollback: user3"}
+
+sqlite> select login_name from user;
+user0
+user1
+user2
+user3
+
+
+=== SQLite has no real transaction! or: SQLite has only one writer! ===
+OK, it has, but not with more than one writer! (But funny that is not a real problem. See below.)
+So if you open a SQLite in two terminals and say
+BEGIN;
+
+On CentOS 7.8.2003:
+# sqlite3 --version
+3.7.17 2013-05-20 00:56:22 118a3b35693b134d56ebd780123b7fd6f1497668
+# sqlite3 webserver.db
+SQLite version 3.7.17 2013-05-20 00:56:22
+Enter ".help" for instructions
+Enter SQL statements terminated with a ";"
+sqlite> BEGIN;
+sqlite> delete from user where login_name='user3';
+sqlite>
+
+and another:
+# sqlite3 webserver.db
+SQLite version 3.7.17 2013-05-20 00:56:22
+Enter ".help" for instructions
+Enter SQL statements terminated with a ";"
+sqlite> BEGIN;
+sqlite> delete from user where login_name='user3';
+Error: database is locked
+sqlite> select id from user;
+3
+4
+2
+1
+sqlite> delete from user where login_name='user3';
+Error: database is locked
+
+# now we disconnect at the first sqlite connection, then this works:
+
+sqlite> delete from user where login_name='user3';
+
+-> SQLite has only one writer!
+
+This might change in the future, see:
+https://stackoverflow.com/questions/4060772/sqlite-concurrent-access/54475279#54475279
+https://stackoverflow.com/questions/4060772/sqlite-concurrent-access/48512801#48512801
+
+https://www.sqlite.org/cgi/src/doc/begin-concurrent/doc/begin_concurrent.md
+
+In the moment we get a 'database is locked' / is busy.
+So we have to handle this.
+First idea was to catch this error (it is called '(sqlite3.OperationalError) database is locked'),
+wait a few ms, rollback an retry (maybe a few times).
+
+But sqlite can handle this by itself by using the
+PRAGMA busy_timeout = milliseconds;
+https://www.sqlite.org/pragma.html
+This lets sqlite wait for specified milliseconds for receiving the lock!
+
+For our usecase OK, because we are not a real high traffic site and the DB is locked for only a few milliseconds.

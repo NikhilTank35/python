@@ -1,0 +1,16 @@
+connexion[swagger-ui]
+flask_sqlalchemy
+#
+#Newer Werkzeugs lead to error:
+# ModuleNotFoundError: No module named 'werkzeug.contrib'
+# when using with flask_session
+# (see https://github.com/fengsp/flask-session/pull/114)
+#so we need something smaller than version 1 (e.g. 0.16.1)
+Werkzeug<1
+#
+flask_session
+flask_login
+passlib
+#
+# not need for the running app, but for dev
+sqlacodegen

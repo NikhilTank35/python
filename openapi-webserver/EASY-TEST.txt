@@ -1,0 +1,241 @@
+
+curl -sS -D - -X POST --header "Content-Type: application/json" --header "Accept: application/json"  -d '{"email":"test@example.com", "password":"password123"}' http://127.0.0.1:5000/login
+HTTP/1.0 200 OK
+Content-Type: application/json
+Content-Length: 520
+Set-Cookie: SID=fbe272df-b743-46c5-bf4c-d74a53aae36d; HttpOnly; Path=/
+Server: Werkzeug/0.16.1 Python/3.6.8
+Date: Wed, 06 May 2020 11:11:32 GMT
+
+{
+  "code": 200,
+  "message": "User logged in.",
+  "user": {
+    "allowed_roles": [
+      "Standard User of Organisation A",
+      "Superuser of the whole System",
+      "Manager of Organisation B"
+    ],
+    "default_locale": "en",
+    "default_role": "Standard User of Organisation A",
+    "email": "test@example.com",
+    "gender": "m",
+    "given_name": "John",
+    "login_name": "user0",
+    "organization_long_name": "Long Name of Organization A",
+    "organization_short_name": "orgA",
+    "surname": "Doe"
+  }
+}
+
+curl -sS -D - -X POST --header "Content-Type: application/json" --header "Accept: application/json"  -d '{"email":"test@example.com", "password":"password123", "locale":"de"}' http://127.0.0.1:5000/login
+HTTP/1.0 200 OK
+Content-Type: application/json
+Content-Length: 503
+Set-Cookie: SID=5e447a8e-fadc-406a-af6f-8717e057b11d; HttpOnly; Path=/
+Server: Werkzeug/0.16.1 Python/3.6.8
+Date: Wed, 06 May 2020 11:13:13 GMT
+
+{
+  "code": 200,
+  "message": "User logged in.",
+  "user": {
+    "allowed_roles": [
+      "User der Organisation A",
+      "Poweruser des Gesamtsystems",
+      "Manager der Organisation B"
+    ],
+    "default_locale": "en",
+    "default_role": "User der Organisation A",
+    "email": "test@example.com",
+    "gender": "m",
+    "given_name": "John",
+    "login_name": "user0",
+    "organization_long_name": "Langname der Organization A",
+    "organization_short_name": "orgA",
+    "surname": "Doe"
+  }
+}
+
+URL for switchhing role
+http://127.0.0.1:5000/switch-to-role/Manager of Organisation B/en
+
+http://127.0.0.1:5000/switch-to-role/Manager of Organisation B
+
+GET http://127.0.0.1:5000/make-this-user-a-trustee-of-organization/user1
+
+GET http://127.0.0.1:5000/make-this-user-a-trustee-of-organization/user1/orgA
+
+GET http://127.0.0.1:5000/make-this-user-a-trustee-of-organization/user1//orgA/en
+
+GET http://127.0.0.1:5000/remove-this-user-from-being-a-trustee-of-organization/user1
+
+GET http://127.0.0.1:5000/remove-this-user-from-being-a-trustee-of-organization/user1/orgA
+
+GET http://127.0.0.1:5000/remove-this-user-from-being-a-trustee-of-organization/user1/orgA/en
+
+
+POST http://127.0.0.1:5000/add-organization
+
+Request body:
+
+{	
+	"en":{	
+      "short-name":"OrgB",
+      "long-name":"Long Name of Org"
+    },
+ "en":
+    { 	
+      "short-name":"OrgB",
+      "long-name":"Long Name of Org"
+    }
+}
+
+POST http://127.0.0.1:5000/remove-organization
+
+Request body:
+
+{
+	"uid":"org-c417"
+}
+
+POST http://127.0.0.1:5000/edit-organization
+
+{
+  "uid":"org-1de4",
+	"de":
+	{
+	"short-name":"abcd",
+	"long-name":"aasaoshsid"
+	},
+	"en":
+	{
+	"short-name":"sfdd",
+	"long-name":"ddfdds"
+	}
+}
+
+GET http://127.0.0.1:5000/get-all-existing-roles
+
+POST http://127.0.0.1:5000/add-existing-role
+
+{
+"translation":[
+    {
+      "locale":"en",
+      "description":"sdaadadajadfbdfn"
+   },
+  {
+      "locale":"de",
+      "description":"adsdssdweweeeweewe"
+   }
+   ],
+"title-uid":"title-trustee",
+"organization-uid":"org-8aab"
+}
+
+POST http://127.0.0.1:5000/edit-existing-role
+
+{
+ "uid":"role-f4dd" 
+"translation":[
+    {
+      "locale":"en",
+      "description":"sdaadadajadfbdfn"
+   },
+  {
+      "locale":"de",
+      "description":"adsdssdweweeeweewe"
+   }
+   ]
+}
+
+
+POST http://127.0.0.1:5000/remove-existing-role
+
+{
+"uid":"role-f4a7"
+}
+
+
+GET http://127.0.0.1:5000/get-all-users
+
+
+POST http://127.0.0.1:5000/edit-user
+
+{
+"login-name": "user0",
+"email": "test@example.com",
+"is_enabled": true,
+"gender": "m",
+"name": "John",
+"surname": "Doe",
+"password":"abcd",
+"organization-uid": "org-abab",
+"default-role-uid": "role-daff",
+"default-locale": "en"
+}
+
+POST http://127.0.0.1:5000/add-user
+
+{
+"login-name": "user0",
+"email": "test@example.com",
+"is_enabled": true,
+"gender": "m",
+"name": "John",
+"surname": "Doe",
+"password":"abcd",
+"organization-uid": "org-abab",
+"default-role-uid": "role-daff",
+"default-locale": "en"
+}
+
+POST http://127.0.0.1:5000/remove-user
+
+{
+	"login-name":"user3"
+}
+
+
+GET http://127.0.0.1:5000/get-all-existing-roles
+
+POST http://127.0.0.1:5000/add-existing-role
+
+{
+"translation":[
+    {
+      "locale":"en",
+      "description":"sdaadadasfsfgsgjadfbdfn"
+   },
+  {
+      "locale":"de",
+      "description":"adsdsgsfgsfsdweweeeweewe"
+   }],
+"title-uid":"title-trustee",
+"organization-uid":"org-9386"
+}
+
+POST http://127.0.0.1:5000/edit-existing-role
+
+{
+ "uid":"role-f4dd",
+"title-uid":"title-trustee",
+"organization-uid":"org-2f7c",
+"translation":[
+    {
+      "locale":"en",
+      "description":"sdaadadajadfbdfn"
+   },
+  {
+      "locale":"de",
+      "description":"adsdssdweweeeweewe"
+   }
+   ]
+}
+
+
+POST http://127.0.0.1:5000/remove-existing-role
+{
+"uid":"role-f4a7"
+}

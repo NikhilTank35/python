@@ -1,0 +1,12 @@
+I am not a Python nor a Flask programmer. So here are a few of my questions.
+(And maybe some TODOs for myself.)
+
+- Why does the system always send a 'Set-Cookie: SID=....; HttpOnly; Path=/' and not only at login_user?
+Is this the reason?
+https://flask-login.readthedocs.io/en/latest/#disabling-session-cookie-for-apis
+
+
+- Is there a way to prevent unneeded parameters?
+Why does this work: 
+curl -sS -D - -X POST --header "Content-Type: application/json" --header "Accept: application/json"  -d '{"email":"test@example.com", "password":"password123", "localexxxx": "de"}' http://127.0.0.1:5000/login
+
